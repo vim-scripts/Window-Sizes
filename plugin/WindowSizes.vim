@@ -1,11 +1,21 @@
 " -*- vim -*-
 " FILE: "c:/vim/Vimfiles/plugin/WindowSizes.vim" {{{
-" LAST MODIFICATION: "Tue, 25 May 2004 14:14:43 Eastern Daylight Time"
+" LAST MODIFICATION: "Wed, 26 May 2004 12:08:55 Eastern Daylight Time"
 " (c) Copyright 2004 Hewlett-Packard Development Company, L.P.
 " $Id:$ }}}
 "
-" Version 1.0
+" Version 1.1
 
+" History:
+"
+" 1.0:  Initial version
+"
+" 1.1:  Added mapping <leader>tog to toggle the behavior of observing fixed
+" window heights.  If disabled, vertically split windows can be used without a
+" problem.  Added two functions, WindowSizesEnabled and WindowSizesMaxEnabled,
+" which return whether fixed sizes are observed and whether window maxing is
+" enabled, respectively.
+"
 " Plugin to keep the vertical sizes of windows within specifications.  For
 " example, if you're using the Decho.vim plugin, you could force the DBG
 " window to always be 10 lines high and for all other windows to automatically
@@ -31,6 +41,11 @@
 " <leader>fix:  If the current window has a preferred fixed vertical size,
 " remove it, allowing this window to expand and contract according to the
 " g:WindowSizes_windowMax setting.
+"
+" <leader>tog:  Toggle the fixed-window-size behavior; the <leader>max
+" behavior is controlled separately.  If fixed-window-sizes are not being
+" observed, then all windows are maximized blindly upon entering (without
+" regard to their preferred height) if maximizing is enabled.
 "
 " <s-up>:  Increases the current windows's size by the value of the
 " WindowSizes_increment variables (see below); using this mapping results in
@@ -59,6 +74,15 @@
 " increment by which to increase or decrease the current window's size when
 " using the <s-up> or <s-down> mappings.  If not defined, the global version
 " (g:WindowSizes_increment) is used (if even THAT's not defined, 5 is used).
+"
+" Functions (for use in the statusline, for example):
+"
+" WindowSizesEnabled:  Returns 1 if the preferred heights of windows is
+" currently being observed (toggle with the <leader>tog mapping).
+"
+" WindowSizesMaxEnabled:  Returns 1 if the current window is going to get as
+" much vertical real estate as possible (taking into consideration the
+" WindowSizesEnabled setting and the presence of other windows).
 "
 " Tips:
 "
@@ -94,6 +118,10 @@ if ( !hasmapto( '<Plug>Fix', 'n' ) )
   nmap <unique> <leader>fix <Plug>Fix
 endif
 
+if ( !hasmapto( '<Plug>Toggle', 'n' ) )
+  nmap <unique> <leader>tog <Plug>Toggle
+endif
+
 if ( !hasmapto( '<Plug>SizeUp', 'n' ) )
   nmap <unique> <s-up> <Plug>SizeUp
 endif
@@ -102,8 +130,9 @@ if ( !hasmapto( '<Plug>SizeDown', 'n' ) )
   nmap <unique> <s-down> <Plug>SizeDown
 endif
 
-nnoremap <silent> <Plug>Max :let g:WindowSizes_windowMax=1 - GetVar( "WindowSizes_windowMax", 0 )<cr>:call SetPreferredSize()<cr>
+nnoremap <silent> <Plug>Max :call ToggleMaxSize()<cr>
 nnoremap <silent> <Plug>Fix :call TogglePreferredSize()<cr>
+nnoremap <silent> <Plug>Toggle :call ToggleEnabled()<cr>
 
 nnoremap <silent> <Plug>SizeUp :let b:preferredWindowSize=winheight( 0 ) + GetVar( "WindowSizes_increment", 5 )<cr>:call SetPreferredSize()<cr>
 nnoremap <silent> <Plug>SizeDown :let b:preferredWindowSize=winheight( 0 ) - GetVar( "WindowSizes_increment", 5 )<cr>:call SetPreferredSize()<cr>
@@ -114,6 +143,20 @@ augroup WindowSizing
 augroup END
 
 function! SetPreferredSize()
+  " If this functionality isn't enabled (to handle vertically split windows,
+  " for example), then, if maxing is on, then blindly max the current window.
+  " If maxing is not on, do nothing.
+  "
+  " If the functionality is enabled, this if is skipped and things go on as
+  " usual.
+  if ( !GetVar( "WindowSizes_enabled", 0 ) )
+    if ( GetVar( "WindowSizes_windowMax", 0 ) )
+      wincmd _
+    endif
+
+    return
+  endif
+
   " No sense in having all the events triggered as we execute the Windo
   " functionality below
   let savedEventIgnore=SaveOpts('ei')
@@ -218,6 +261,16 @@ function! ResizeCurrentWindow( cursorWindow )
   execute "normal " . ( HeightOfCurrentWindow( a:cursorWindow ) - 1 ) . "\<c-w>_"
 endfunction
 
+" If we're no longer enabled and not maximizing windows AND all windows are to
+" be equal height, then make it so
+function! s:ResizeAsNeeded()
+  if ( !g:WindowSizes_enabled && !GetVar( "WindowSizes_windowMax", 0 ) && &equalalways )
+    wincmd =
+  else
+    call SetPreferredSize()
+  endif
+endfunction
+
 function! TogglePreferredSize()
   if ( exists( "b:preferredWindowSize" ) )
     unlet b:preferredWindowSize
@@ -231,4 +284,26 @@ function! TogglePreferredSize()
   endif
 
   call SetPreferredSize()
+endfunction
+
+function! ToggleEnabled()
+  let g:WindowSizes_enabled = 1 - GetVar( "WindowSizes_enabled", 0 )
+
+  call <SID>ResizeAsNeeded()
+endfunction
+
+function! ToggleMaxSize()
+  let g:WindowSizes_windowMax=1 - GetVar( "WindowSizes_windowMax", 0 )
+
+  call <SID>ResizeAsNeeded()
+endfunction
+
+" If 1, the preferred height settings of windows is enabled.
+function! WindowSizesEnabled()
+  return GetVar( "WindowSizes_enabled", 0 )
+endfunction
+
+" If 1, windows are being maximized
+function! WindowSizesMaxEnabled()
+  return GetVar( "WindowSizes_windowMax", 0 )
 endfunction
