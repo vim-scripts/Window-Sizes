@@ -1,0 +1,99 @@
+This is a mirror of http://www.vim.org/scripts/script.php?script_id=997
+
+History:
+
+1.0:  Initial version
+
+1.1:  Added mapping <leader>tog to toggle the behavior of observing fixed
+window heights.  If disabled, vertically split windows can be used without a
+problem.  Added two functions, WindowSizesEnabled and WindowSizesMaxEnabled,
+which return whether fixed sizes are observed and whether window maxing is
+enabled, respectively.
+
+Plugin to keep the vertical sizes of windows within specifications.  For
+example, if you're using the Decho.vim plugin, you could force the DBG
+window to always be 10 lines high and for all other windows to automatically
+maximize upon entry.  Or, you could specify explicit sizes for two windows
+and let all the remaining space be shared equally among the other windows.
+
+This is a bit different from using equalalways and winheight=999 because it
+will always honor the vertical height settings of individual windows, using
+the maximizing or equalization only on those windows that don't have
+anything set explicitly.
+
+Caveat (and it's a big one):  No support for vertical splits.  If you have a
+vertical split, the behavior is undefined (well, it's not undefined, but
+it's ugly).
+
+Usage (default mappings):
+
+<leader>max:  Toggle whether windows without an explicit fixed size will
+automatically maximize upon entry or whether all un-fixed-size windows will
+simply share the vertical space left over once the fixed windows have taken
+their share of the space.
+
+<leader>fix:  If the current window has a preferred fixed vertical size,
+remove it, allowing this window to expand and contract according to the
+g:WindowSizes_windowMax setting.
+
+<leader>tog:  Toggle the fixed-window-size behavior; the <leader>max
+behavior is controlled separately.  If fixed-window-sizes are not being
+observed, then all windows are maximized blindly upon entering (without
+regard to their preferred height) if maximizing is enabled.
+
+<s-up>:  Increases the current windows's size by the value of the
+WindowSizes_increment variables (see below); using this mapping results in
+fixing the window height.
+
+<s-down>:  Decreases the current windows's size by the value of the
+WindowSizes_increment variables (see below); using this mapping results in
+fixing the window height.
+
+Variables (configuration):
+g:WindowSizes_windowMax:  If 1, then windows are maximized (the <leader>max
+mapping merely toggles this value between 1 and 0).
+
+b:preferredWindowSize:  If defined, the fixed vertical size of the current
+window -- the window will be this size vertically (tweaked by the
+<leader>fix, <s-up> and <s-down> mappings).  If not defined, a prompt is
+displayed for the user to specify a fixed vertical height for the current
+window where the current height is used as the default value (hit <ESC> to
+get out of it).
+
+g:WindowSizes_increment:  If defined, this is the increment by which to
+increase or decrease the current window's size if using the <s-up> or
+<s-down> mappings.  If not defined, 5 is used.
+
+b:WindowSizes_increment:  If defined in a given window, this is the
+increment by which to increase or decrease the current window's size when
+using the <s-up> or <s-down> mappings.  If not defined, the global version
+(g:WindowSizes_increment) is used (if even THAT's not defined, 5 is used).
+
+Functions (for use in the statusline, for example):
+
+WindowSizesEnabled:  Returns 1 if the preferred heights of windows is
+currently being observed (toggle with the <leader>tog mapping).
+
+WindowSizesMaxEnabled:  Returns 1 if the current window is going to get as
+much vertical real estate as possible (taking into consideration the
+WindowSizesEnabled setting and the presence of other windows).
+
+Tips:
+
+- Always have at least one window without a specified size so it can take
+  over the remaining vertical space.
+
+- Always make sure that the total size of the fixed windows is less than the
+  actual number of lines visible on-screen!  (The behavior otherwise is
+  undefined -- that is, not tested by me.)
+
+- To restore a window to not having a preferred size, unlet
+  b:preferredWindowSize (just use the <leader>fix mapping).
+
+TODO:
+
+- Observe the 'laststatus' value.
+
+- Figure out how to change all the global variables to script or some such
+  so they don't pollute the global variable pool.
+
