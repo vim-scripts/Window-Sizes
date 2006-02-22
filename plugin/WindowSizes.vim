@@ -1,10 +1,9 @@
 " -*- vim -*-
 " FILE: "c:/vim/Vimfiles/plugin/WindowSizes.vim" {{{
-" LAST MODIFICATION: "Wed, 26 May 2004 12:08:55 Eastern Daylight Time"
-" (c) Copyright 2004 Hewlett-Packard Development Company, L.P.
+" LAST MODIFICATION: "Wed, 22 Feb 2006 15:54:32 Eastern Standard Time"
 " $Id:$ }}}
 "
-" Version 1.1
+" Version 1.3
 
 " History:
 "
@@ -15,6 +14,12 @@
 " problem.  Added two functions, WindowSizesEnabled and WindowSizesMaxEnabled,
 " which return whether fixed sizes are observed and whether window maxing is
 " enabled, respectively.
+"
+" 1.2:  Added a visual mapping (default <leader>fix) to behave the same as the
+" normal mode mapping, except the default height is the number of lines in the
+" visually selected block.
+"
+" 1.3:  Added the ability to enable or disable this plugin.
 "
 " Plugin to keep the vertical sizes of windows within specifications.  For
 " example, if you're using the Decho.vim plugin, you could force the DBG
@@ -38,9 +43,15 @@
 " simply share the vertical space left over once the fixed windows have taken
 " their share of the space.
 "
-" <leader>fix:  If the current window has a preferred fixed vertical size,
-" remove it, allowing this window to expand and contract according to the
-" g:WindowSizes_windowMax setting.
+" <leader>fix (normal mode only):  If the current window has a preferred fixed
+" vertical size, remove it, allowing this window to expand and contract
+" according to the g:WindowSizes_windowMax setting.  If it doesn't, prompt the
+" user for a size, using the current height of the window as the default value
+" (hit escape to abort).
+"
+" <leader>fix (visual mode only):  Behaves the same as the normal mode
+" version, except uses the height of the visually selected region (the number
+" of lines selected visually) as the default height.
 "
 " <leader>tog:  Toggle the fixed-window-size behavior; the <leader>max
 " behavior is controlled separately.  If fixed-window-sizes are not being
@@ -74,6 +85,14 @@
 " increment by which to increase or decrease the current window's size when
 " using the <s-up> or <s-down> mappings.  If not defined, the global version
 " (g:WindowSizes_increment) is used (if even THAT's not defined, 5 is used).
+"
+" g:enableWindowSizing:  If defined and 1, enables the plugin upon startup.
+"
+" Commands:
+"
+" Enablewindowsizing:  Turn on window sizing (enable the plugin).
+"
+" Disablewindowsizing:  Turn off window sizing (disable the plugin).
 "
 " Functions (for use in the statusline, for example):
 "
@@ -118,6 +137,10 @@ if ( !hasmapto( '<Plug>Fix', 'n' ) )
   nmap <unique> <leader>fix <Plug>Fix
 endif
 
+if ( !hasmapto( '<Plug>Fix', 'v' ) )
+  vmap <unique> <leader>fix <Plug>FixVisually
+endif
+
 if ( !hasmapto( '<Plug>Toggle', 'n' ) )
   nmap <unique> <leader>tog <Plug>Toggle
 endif
@@ -132,15 +155,27 @@ endif
 
 nnoremap <silent> <Plug>Max :call ToggleMaxSize()<cr>
 nnoremap <silent> <Plug>Fix :call TogglePreferredSize()<cr>
+vnoremap <silent> <Plug>FixVisually :call TogglePreferredSizeVisually()<cr>
 nnoremap <silent> <Plug>Toggle :call ToggleEnabled()<cr>
 
 nnoremap <silent> <Plug>SizeUp :let b:preferredWindowSize=winheight( 0 ) + GetVar( "WindowSizes_increment", 5 )<cr>:call SetPreferredSize()<cr>
 nnoremap <silent> <Plug>SizeDown :let b:preferredWindowSize=winheight( 0 ) - GetVar( "WindowSizes_increment", 5 )<cr>:call SetPreferredSize()<cr>
 
-augroup WindowSizing
-  au!
-  au WinEnter * call SetPreferredSize()
-augroup END
+function! ToggleWindowSizing( enable )
+  augroup WindowSizing
+    au!
+
+    if ( a:enable )
+      au WinEnter * call SetPreferredSize()
+    endif
+  augroup END
+endfunction
+com! Enablewindowsizing call ToggleWindowSizing( 1 )
+com! Disablewindowsizing call ToggleWindowSizing( 0 )
+
+if ( exists( "g:enableWindowSizing" ) && g:enableWindowSizing )
+  Enablewindowsizing
+endif
 
 function! SetPreferredSize()
   " If this functionality isn't enabled (to handle vertically split windows,
@@ -271,11 +306,21 @@ function! s:ResizeAsNeeded()
   endif
 endfunction
 
-function! TogglePreferredSize()
+function! TogglePreferredSizeVisually() range
+  call TogglePreferredSize( a:lastline - a:firstline + 1 )
+endfunction
+
+function! TogglePreferredSize(...)
   if ( exists( "b:preferredWindowSize" ) )
     unlet b:preferredWindowSize
   else
-    let b:preferredWindowSize=input( "Enter preferred size:  ", winheight( 0 ) )
+    if ( a:0 == 0 )
+      let defaultHeight = winheight( 0 )
+    else
+      let defaultHeight = a:1
+    endif
+
+    let b:preferredWindowSize=input( "Enter preferred size:  ", defaultHeight )
 
     " The either entered nothing or hit escape (more likely)
     if ( b:preferredWindowSize == '' )
@@ -306,4 +351,9 @@ endfunction
 " If 1, windows are being maximized
 function! WindowSizesMaxEnabled()
   return GetVar( "WindowSizes_windowMax", 0 )
+endfunction
+
+" If 0, no preferred height
+function! PreferredWindowHeight()
+  return GetVar( "preferredWindowSize", 0 )
 endfunction
